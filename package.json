@@ -1,0 +1,20 @@
+{
+    "name": "sit314-tixster-scale",
+    "version": "1.0.0",
+    "description": "Crash-then-scale serverless pipeline for SIT314",
+    "main": "index.js",
+    "type": "commonjs",
+    "scripts": {
+    "deploy": "serverless deploy",
+    "remove": "serverless remove",
+    "phase:a": "artillery run tests/artillery-phase-a.yml -o tests/phase-a.json",
+    "phase:b": "artillery run tests/artillery-phase-b.yml -o tests/phase-b.json"
+    },
+    "dependencies": {
+    "aws-sdk": "^2.1582.0",
+    "uuid": "^9.0.1"
+    },
+    "devDependencies": {
+    "artillery": "^2.0.0-36"
+    }
+    }

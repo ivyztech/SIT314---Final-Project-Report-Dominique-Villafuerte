@@ -1,0 +1,110 @@
+service: sit314-tixster-scale
+frameworkVersion: "*"
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ap-southeast-1
+  stage: prod
+  environment:
+    TABLE_NAME: ${self:custom.tableName}
+    API_KEY: ${self:custom.apiKey}
+    QUEUE_URL: !Ref TicketQueue
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:Query
+            - dynamodb:GetItem
+          Resource:
+            - Fn::GetAtt: [ TicketEvents, Arn ]
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:GetQueueAttributes
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+          Resource:
+            - Fn::GetAtt: [ TicketQueue, Arn ]
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: "*"
+
+custom:
+  tableName: TicketEvents
+  apiKey: TIXSTER_314_SECRET_2025   #  custom key
+  reserved:
+    validator: 2    # Phase A (crash)
+    riskscore: 2
+    notifier: 2
+
+functions:
+  validator:
+    handler: services/validator/index.handler
+    # reservedConcurrency: ${self:custom.reserved.validator}
+    events:
+      - httpApi:
+          path: /ingest
+          method: post
+
+  riskscore:
+    handler: services/riskscore/index.handler
+    # reservedConcurrency: ${self:custom.reserved.riskscore}
+    environment:
+      WORK_DELAY_MS: 0
+    events:
+      - sqs:
+          arn: !GetAtt TicketQueue.Arn
+          batchSize: 10
+
+  notifier:
+    handler: services/notifier/index.handler
+    # reservedConcurrency: ${self:custom.reserved.notifier}
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt TicketEvents.StreamArn
+          filterPatterns:
+            - eventName: [ "INSERT" ]
+              dynamodb:
+                NewImage:
+                  status:
+                    S: [ "FAKE", "USED" ]
+
+resources:
+  Resources:
+    TicketEvents:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.tableName}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+          - AttributeName: sk
+            AttributeType: S
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+          - AttributeName: sk
+            KeyType: RANGE
+        StreamSpecification:
+          StreamViewType: NEW_IMAGE
+
+    TicketDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        MessageRetentionPeriod: 1209600  # 14 days
+
+    TicketQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt TicketDLQ.Arn
+          maxReceiveCount: 3
