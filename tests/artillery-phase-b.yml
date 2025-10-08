@@ -1,0 +1,23 @@
+config:
+  target: "https://hs0vn84971.execute-api.ap-southeast-1.amazonaws.com"   # Example: https://abc123.execute-api.ap-southeast-1.amazonaws.com
+  phases:
+    - duration: 60
+      arrivalRate: 20        # Warm-up phase
+    - duration: 120
+      arrivalRate: 250       # Sustained high load after scaling up concurrency
+    - duration: 60
+      arrivalRate: 80        # Cooldown
+  defaults:
+    headers:
+      x-api-key: "TIXSTER_314_SECRET_2025"   # your custom key
+scenarios:
+  - name: ticket-scan
+    flow:
+      - post:
+          url: "/ingest"
+          json:
+            ticketId: "TWICE-2025-MNL-SEC{{ $randomNumber(100,999) }}-ROW{{ $pickRandom(['A','B','C','D']) }}-SEAT{{ $randomNumber(1,40) }}"
+            issuer: "tixster"
+            scanTs: "{{ Date.now() }}"
+            deviceId: "scanner-{{ $randomNumber(1,200) }}"
+            nonce: "{{ $uuid }}"
