@@ -1,0 +1,80 @@
+[
+    { "p": "payload" }
+    ],
+    "repeat": "0.25",
+    "once": false,
+    "x": 140,
+    "y": 80,
+    "wires": [["fn-build"]]
+    },
+    {
+    "id": "fn-build",
+    "type": "function",
+    "z": "b1f0d2aa6b2e1",
+    "name": "build payload",
+    "func": "msg.headers = { 'x-api-key': flow.get('API_KEY') || 'CHANGEME_SUPER_SECRET_KEY' }\nconst seat = Math.floor(Math.random()*40)+1;\nmsg.payload = {\n ticketId: `TWICE-2025-MNL-SEC${100+Math.floor(Math.random()*900)}-ROW${['A','B','C','D'][Math.floor(Math.random()*4)]}-SEAT${seat}`,\n issuer: 'tixster',\n scanTs: Date.now(),\n deviceId: `scanner-${1+Math.floor(Math.random()*120)}`,\n nonce: (Math.random()+1).toString(36).substring(2)\n};\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 330,
+    "y": 80,
+    "wires": [["http-post"]]
+    },
+    {
+    "id": "http-post",
+    "type": "http request",
+    "z": "b1f0d2aa6b2e1",
+    "name": "POST /ingest",
+    "method": "POST",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "https://REPLACE_WITH_API/ingest",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "authType": "",
+    "x": 540,
+    "y": 80,
+    "wires": [["debug"]]
+    },
+    {
+    "id": "debug",
+    "type": "debug",
+    "z": "b1f0d2aa6b2e1",
+    "name": "202 Accepted?",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 770,
+    "y": 80,
+    "wires": []
+    },
+    {
+    "id": "set-api-key",
+    "type": "inject",
+    "z": "b1f0d2aa6b2e1",
+    "name": "set API_KEY",
+    "props": [
+    { "p": "payload" }
+    ],
+    "payload": "CHANGEME_SUPER_SECRET_KEY",
+    "payloadType": "str",
+    "x": 130,
+    "y": 140,
+    "wires": [["fn-set-key"]]
+    },
+    {
+    "id": "fn-set-key",
+    "type": "function",
+    "z": "b1f0d2aa6b2e1",
+    "name": "save key",
+    "func": "flow.set('API_KEY', msg.payload); return null;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 330,
+    "y": 140,
+    "wires": [[]]
+    }
+    ]
